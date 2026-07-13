@@ -1,0 +1,6 @@
+Flask>=3.0,<4
+Flask-CORS>=4.0,<5
+openai>=1.99.9,<2
+python-dotenv>=1.0,<2
+Pillow>=11.3,<13
+Werkzeug>=3.0,<4
