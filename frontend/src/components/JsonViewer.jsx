@@ -10,7 +10,7 @@ function JsonViewer({ payload }) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "receipt-extraction.json";
+    link.download = "document-extraction.json";
     link.click();
     URL.revokeObjectURL(url);
   }

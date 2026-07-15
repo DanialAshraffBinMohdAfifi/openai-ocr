@@ -10,6 +10,7 @@ from werkzeug.utils import secure_filename
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 ALLOWED_MIME_TYPES = {"image/jpeg", "image/png", "image/webp"}
+ALLOWED_PDF_MIME_TYPES = {"application/pdf", "application/x-pdf"}
 
 
 class FileValidationError(Exception):
@@ -23,12 +24,12 @@ def save_upload(uploaded_file):
     original_filename = secure_filename(uploaded_file.filename)
     extension = Path(original_filename).suffix.lower()
 
-    if extension not in ALLOWED_EXTENSIONS:
-        raise FileValidationError("Unsupported file type. Upload a JPG, JPEG, PNG, or WEBP image.")
+    if extension not in ALLOWED_EXTENSIONS | {".pdf"}:
+        raise FileValidationError("Unsupported file type. Upload a JPG, JPEG, PNG, WEBP, or PDF file.")
 
     content_type = (uploaded_file.mimetype or "").lower()
-    if content_type and content_type not in ALLOWED_MIME_TYPES:
-        raise FileValidationError("Unsupported MIME type. Upload a valid receipt image.")
+    if content_type and content_type != "application/octet-stream" and content_type not in ALLOWED_MIME_TYPES | ALLOWED_PDF_MIME_TYPES:
+        raise FileValidationError("Unsupported MIME type. Upload a valid receipt image or PDF.")
 
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=extension)
     temp_file.close()
@@ -38,7 +39,10 @@ def save_upload(uploaded_file):
         cleanup_file(temp_file.name)
         raise FileValidationError("Uploaded file is empty.")
 
-    _verify_image(temp_file.name)
+    if extension == ".pdf":
+        _verify_pdf(temp_file.name)
+    else:
+        _verify_image(temp_file.name)
     return temp_file.name, original_filename
 
 
@@ -57,6 +61,10 @@ def cleanup_file(file_path):
             pass
 
 
+def is_pdf_file(file_path):
+    return Path(file_path).suffix.lower() == ".pdf"
+
+
 def _verify_image(file_path):
     try:
         with Image.open(file_path) as image:
@@ -65,6 +73,13 @@ def _verify_image(file_path):
                 raise FileValidationError("Unsupported image content. Upload a JPG, JPEG, PNG, or WEBP image.")
     except UnidentifiedImageError as exc:
         raise FileValidationError("Invalid image file.") from exc
+
+
+def _verify_pdf(file_path):
+    with open(file_path, "rb") as pdf_file:
+        header = pdf_file.read(5)
+    if header != b"%PDF-":
+        raise FileValidationError("Invalid PDF file.")
 
 
 def _detect_mime_type(file_path):
